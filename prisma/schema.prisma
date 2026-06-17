@@ -1,0 +1,181 @@
+// Midnight AI — Prisma Schema
+// PostgreSQL database schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────
+model User {
+  id        BigInt   @id                     // Telegram user ID
+  username  String?
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+  language  String   @default("en")
+  timezone  String   @default("UTC")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  metadata  Json     @default("{}")
+
+  memories      Memory[]
+  notes         Note[]
+  tasks         Task[]
+  reminders     Reminder[]
+  conversations Conversation[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// MEMORIES
+// ─────────────────────────────────────────
+model Memory {
+  id        String      @id @default(uuid())
+  userId    BigInt      @map("user_id")
+  content   String
+  summary   String?
+  type      MemoryType  @default(PERMANENT)
+  category  String?
+  tags      String[]    @default([])
+  expiresAt DateTime?   @map("expires_at")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@map("memories")
+}
+
+enum MemoryType {
+  PERMANENT
+  TEMPORARY
+
+  @@map("memory_type")
+}
+
+// ─────────────────────────────────────────
+// NOTES
+// ─────────────────────────────────────────
+model Note {
+  id        String   @id @default(uuid())
+  userId    BigInt   @map("user_id")
+  title     String?
+  content   String
+  tags      String[] @default([])
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notes")
+}
+
+// ─────────────────────────────────────────
+// TASKS
+// ─────────────────────────────────────────
+model Task {
+  id          String     @id @default(uuid())
+  userId      BigInt     @map("user_id")
+  title       String
+  description String?
+  status      TaskStatus @default(PENDING)
+  priority    Priority   @default(MEDIUM)
+  dueDate     DateTime?  @map("due_date")
+  completedAt DateTime?  @map("completed_at")
+  tags        String[]   @default([])
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  CANCELLED
+
+  @@map("task_status")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("priority")
+}
+
+// ─────────────────────────────────────────
+// REMINDERS
+// ─────────────────────────────────────────
+model Reminder {
+  id        String       @id @default(uuid())
+  userId    BigInt       @map("user_id")
+  chatId    BigInt       @map("chat_id")
+  message   String
+  remindAt  DateTime     @map("remind_at")
+  repeat    RepeatType   @default(NONE)
+  sent      Boolean      @default(false)
+  sentAt    DateTime?    @map("sent_at")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([remindAt])
+  @@index([sent])
+  @@map("reminders")
+}
+
+enum RepeatType {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+
+  @@map("repeat_type")
+}
+
+// ─────────────────────────────────────────
+// CONVERSATIONS (persistent log)
+// ─────────────────────────────────────────
+model Conversation {
+  id        String   @id @default(uuid())
+  userId    BigInt   @map("user_id")
+  role      Role
+  content   String
+  tokens    Int?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("conversations")
+}
+
+enum Role {
+  USER
+  ASSISTANT
+  SYSTEM
+
+  @@map("role")
+}
